@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>BLINK-SPEAK - Simple Eye Blink Communicator</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+    html, body {
+        background:#000; color:#fff; height:100%; width:100%;
+        font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        overflow:hidden; touch-action:none;
+    }
+
+    /* ---------- START SCREEN ---------- */
+    #startScreen {
+        position:fixed; inset:0; background:#000; z-index:100;
+        display:flex; flex-direction:column; align-items:center; justify-content:center;
+        text-align:center; padding:24px;
+    }
+    #startScreen h1 { color:#22ff6a; font-size:26px; margin-bottom:14px; }
+    #startScreen .legend {
+        text-align:left; background:#111; border:1px solid #222; border-radius:12px;
+        padding:14px 18px; margin-bottom:22px; max-width:320px; width:100%;
+    }
+    #startScreen .legend div { font-size:15px; margin:6px 0; color:#ddd; }
+    #startScreen .legend b { color:#fff; }
+    #startScreen .tagS { color:#22ff6a; font-weight:800; }
+    #startScreen .tagL { color:#38bdf8; font-weight:800; }
+    #startScreen .tagX { color:#ff5050; font-weight:800; }
+    .btn {
+        background:#22ff6a; color:#000; border:none; padding:16px 32px; font-size:18px;
+        font-weight:800; border-radius:12px; cursor:pointer; margin:6px; width:280px;
+        box-shadow:0 0 20px rgba(34,255,106,0.35);
+    }
+    .btn:active { transform:scale(0.96); }
+    .btn.secondary { background:#222; color:#fff; font-size:15px; padding:12px 24px; box-shadow:none; }
+    #startScreen .note { font-size:12px; color:#666; margin-top:16px; max-width:300px; }
+
+    /* ---------- CALIBRATION (unchanged approach from original EAR app) ---------- */
+    #calibrationOverlay {
+        position:fixed; inset:0; background:rgba(0,0,0,0.97); z-index:90; display:none;
+        flex-direction:column; align-items:center; justify-content:center; text-align:center;
+    }
+    #calibrationOverlay h2 { color:#ffd400; font-size:22px; margin-bottom:18px; }
+    #calibrationOverlay p { color:#fff; font-size:17px; margin-bottom:26px; padding:0 20px; line-height:1.5; }
+    .calValue { color:#38bdf8; font-size:30px; font-weight:800; }
+
+    /* ---------- APP SHELL ---------- */
+    #app { position:relative; width:100vw; height:100dvh; display:flex; flex-direction:column; }
+
+    /* Top bar: sentence + camera toggle */
+    #topBar {
+        display:flex; align-items:center; gap:10px; padding:10px 12px;
+        background:#0a0a0a; border-bottom:1px solid #1c1c1c; z-index:5;
+    }
+    #sentenceWrap { flex:1; min-width:0; }
+    #sentenceLabel { font-size:10px; color:#666; font-weight:700; letter-spacing:1px; }
+    #sentenceText {
+        font-size:17px; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden;
+        text-overflow:ellipsis;
+    }
+    #sentenceText.empty { color:#555; font-weight:400; font-style:italic; }
+    #speakIcon { font-size:20px; opacity:0.15; transition:opacity 0.2s; }
+    #speakIcon.active { opacity:1; animation:pulseIcon 0.6s infinite; }
+    @keyframes pulseIcon { 0%,100%{transform:scale(1)} 50%{transform:scale(1.25)} }
+    .iconBtn {
+        background:#181818; border:1px solid #2a2a2a; color:#ccc; width:38px; height:38px;
+        border-radius:10px; font-size:16px; cursor:pointer; flex-shrink:0;
+    }
+    .iconBtn:active { background:#2a2a2a; }
+
+    /* Collapsible camera / debug panel */
+    #camPanel {
+        display:none; background:#0a0a0a; border-bottom:1px solid #1c1c1c; padding:8px 12px 10px;
+        z-index:5;
+    }
+    #camPanel.open { display:block; }
+    #camRow { display:flex; gap:10px; align-items:flex-start; }
+    #videoWrap { position:relative; width:90px; height:68px; border-radius:8px; overflow:hidden; flex-shrink:0; background:#111; }
+    #videoElement { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transform:scaleX(-1); opacity:0.85; }
+    #canvasOverlay { position:absolute; inset:0; width:100%; height:100%; }
+    #debugInfo { flex:1; min-width:0; font-size:11px; color:#888; line-height:1.6; }
+    #debugInfo b { color:#ccc; }
+    #earBarTrack { width:100%; height:5px; background:#222; border-radius:3px; margin-top:3px; overflow:hidden; }
+    #earFill { height:100%; width:50%; background:#22ff6a; transition:width 0.1s, background 0.2s; }
+    #earFill.closed { background:#ff5050; }
+
+    /* Blink progress bar - the key real-time feedback for the patient */
+    #progressWrap { padding:8px 12px; background:#050505; z-index:5; }
+    #progressLabel { font-size:12px; font-weight:700; text-align:center; margin-bottom:5px; color:#666; min-height:16px; transition:color 0.15s; }
+    #progressTrack { width:100%; height:10px; background:#161616; border-radius:6px; overflow:hidden; border:1px solid #222; }
+    #progressFill { height:100%; width:0%; background:#333; border-radius:6px; transition:background-color 0.15s; }
+    #progressFill.pulseRed { animation:pulseRed 0.4s infinite; }
+    @keyframes pulseRed { 0%,100%{opacity:1} 50%{opacity:0.55} }
+
+    /* Word grid */
+    #wordGrid {
+        flex:1; display:grid; grid-template-columns:repeat(3,1fr); grid-auto-rows:1fr;
+        gap:10px; padding:10px 12px; overflow-y:auto; align-content:stretch;
+    }
+    .cell {
+        background:#141414; border:2px solid #262626; border-radius:14px;
+        display:flex; align-items:center; justify-content:center; text-align:center;
+        font-weight:800; font-size:clamp(13px,3.6vw,19px); color:#eaeaea; padding:6px 8px;
+        letter-spacing:0.5px; transition:border-color 0.2s, background 0.2s, box-shadow 0.2s, transform 0.15s;
+    }
+    .cell.selected {
+        border-color:#22ff6a; background:#0d2416; color:#fff; transform:scale(1.03);
+        box-shadow:0 0 18px rgba(34,255,106,0.5), inset 0 0 14px rgba(34,255,106,0.18);
+    }
+    .cell.flashSpeak {
+        border-color:#38bdf8 !important; background:#0a2740 !important;
+        box-shadow:0 0 22px rgba(56,189,248,0.65) !important;
+    }
+    #wordGrid.sentenceFlash { animation:sentencePulse 0.5s ease 2; }
+    @keyframes sentencePulse {
+        0%,100% { box-shadow:inset 0 0 0 rgba(255,80,80,0); }
+        50% { box-shadow:inset 0 0 40px rgba(255,80,80,0.4); }
+    }
+
+    /* Legend footer */
+    #legendBar {
+        display:flex; justify-content:space-around; padding:8px 6px; background:#0a0a0a;
+        border-top:1px solid #1c1c1c; font-size:11px; font-weight:700; z-index:5;
+    }
+    #legendBar span.tagS { color:#22ff6a; }
+    #legendBar span.tagL { color:#38bdf8; }
+    #legendBar span.tagX { color:#ff5050; }
+
+    /* Caregiver panel */
+    #caregiverPanel {
+        display:none; background:#0a0a0a; border-top:1px solid #1c1c1c; padding:10px 12px;
+        z-index:5;
+    }
+    #caregiverPanel.open { display:block; }
+    #caregiverGrid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+    .ctrlBtn {
+        background:#181818; border:1px solid #2a2a2a; color:#fff; padding:10px 6px;
+        font-size:12px; font-weight:700; border-radius:8px; cursor:pointer; text-align:center;
+    }
+    .ctrlBtn:active { background:#2a2a2a; }
+    .ctrlBtn.hold { touch-action:none; }
+    #lastActionRow { font-size:11px; color:#666; margin-top:8px; text-align:center; }
+</style>
+</head>
+<body>
+
+<!-- ============ START SCREEN ============ -->
+<div id="startScreen">
+    <h1>👁️ EyeSpeak</h1>
+    <div class="legend">
+        <div><span class="tagS">● SHORT blink</span> (¼–¾s) → <b>Next word</b></div>
+        <div><span class="tagL">● LONG blink</span> (¾–1.5s) → <b>Speak word</b></div>
+        <div><span class="tagX">● 3+ sec blink</span> → <b>Speak full sentence & clear</b></div>
+    </div>
+    <button class="btn" onclick="startApp(false)">▶ START CAMERA</button>
+    <button class="btn secondary" onclick="startApp(true)">▶ START (No Voice)</button>
+    <p class="note">Prop the device 30–50cm from the patient's face in good lighting. Calibration will run automatically after the camera starts.</p>
+</div>
+
+<!-- ============ CALIBRATION ============ -->
+<div id="calibrationOverlay">
+    <h2 id="calTitle">CALIBRATION</h2>
+    <p id="calText">Keep eye OPEN<br>and tap button</p>
+    <div class="calValue" id="calValue">--</div>
+    <button class="btn" id="calBtn" onclick="nextCalibrationStep()" style="margin-top:26px;">START</button>
+</div>
+
+<!-- ============ MAIN APP ============ -->
+<div id="app">
+    <div id="topBar">
+        <div id="sentenceWrap">
+            <div id="sentenceLabel">SENTENCE</div>
+            <div id="sentenceText" class="empty">building...</div>
+        </div>
+        <div id="speakIcon">🔊</div>
+        <button class="iconBtn" id="camToggleBtn" onclick="toggleCamPanel()" title="Camera/debug">📷</button>
+        <button class="iconBtn" onclick="toggleCaregiverPanel()" title="Caregiver controls">⚙️</button>
+    </div>
+
+    <div id="camPanel">
+        <div id="camRow">
+            <div id="videoWrap">
+                <video id="videoElement" playsinline autoplay muted></video>
+                <canvas id="canvasOverlay"></canvas>
+            </div>
+            <div id="debugInfo">
+                <div>Status: <b id="statusText">READY</b></div>
+                <div>EAR: <b id="earText">0.00</b> &nbsp; Threshold: <b id="threshText">0.20</b></div>
+                <div id="earBarTrack"><div id="earFill"></div></div>
+                <div style="margin-top:3px;">Last: <span id="lastVal">Waiting...</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="progressWrap">
+        <div id="progressLabel">Watching for blink...</div>
+        <div id="progressTrack"><div id="progressFill"></div></div>
+    </div>
+
+    <div id="wordGrid"></div>
+
+    <div id="legendBar">
+        <span class="tagS">SHORT = Next</span>
+        <span class="tagL">LONG = Speak</span>
+        <span class="tagX">3s = Sentence</span>
+    </div>
+
+    <div id="caregiverPanel">
+        <div id="caregiverGrid">
+            <button class="ctrlBtn" onclick="manualNext()">NEXT<br>Word</button>
+            <button class="ctrlBtn" onclick="manualSpeakWord()">SPEAK<br>Word</button>
+            <button class="ctrlBtn" onclick="manualSpeakSentence()">SPEAK<br>Sentence</button>
+            <button class="ctrlBtn" onclick="manualClearSentence()">CLEAR<br>Sentence</button>
+            <button class="ctrlBtn" onclick="resetToFirst()">RESET<br>Highlight</button>
+            <button class="ctrlBtn" onclick="toggleCal()">CAL<br>Calibrate</button>
+            <button class="ctrlBtn" onclick="toggleVoice()" id="voiceBtn">VOICE<br>ON</button>
+            <button class="ctrlBtn hold" id="simBtn">HOLD TO<br>SIM. BLINK</button>
+            <button class="ctrlBtn" onclick="toggleCamPanel()">TOGGLE<br>CAMERA VIEW</button>
+        </div>
+        <div id="lastActionRow">Manual controls for testing / caregiver override</div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+
+<script>
+// ================= CONFIG (matches the requested spec) =================
+const EAR_THRESHOLD_DEFAULT = 0.20;
+const NOISE_MAX   = 100;    // <100ms = camera jitter, ignore
+const SHORT_MIN   = 250, SHORT_MAX = 700;     // NEXT word
+const LONG_MIN    = 800,  LONG_MAX = 1500;    // SPEAK word
+const SENTENCE_MIN = 3000;                    // SPEAK sentence & clear
+const MAX_BLINK   = 10000;  // >10s = probably looked away / rested eyes, ignore safely
+
+// ================= WORD LIST (edit this array to customize the board) =================
+const WORDS = [
+    "WATER", "FOOD", "MEDICINE",
+    "HELP", "BATHROOM", "PAIN",
+    "COLD", "HOT", "YES",
+    "NO", "THANK YOU", "SORRY",
+    "HELLO", "GOODBYE", "LOVE"
+];
+
+// MediaPipe eye landmarks (468-point model) - unchanged from original EAR method
+const LEFT_EYE  = [362, 385, 387, 263, 373, 380];
+const RIGHT_EYE = [33, 160, 158, 133, 153, 144];
+
+// ================= STATE =================
+let video, canvas, ctx;
+let faceMesh, camera;
+let audioCtx;
+let useVoice = true;
+let isSpeaking = false;
+
+let eyeClosed = false;
+let blinkStartTime = 0;
+let lastEAR = 0.30;
+
+let earThreshold = EAR_THRESHOLD_DEFAULT;
+let sensorOpenEAR = 0.30;
+let sensorClosedEAR = 0.10;
+let calibrated = false;
+let calStep = 0, calSum = 0, calCount = 0, calInterval = null;
+
+let currentIndex = 0;
+let sentenceWords = [];
+let lastAction = "Waiting...";
+let systemStatus = "ACTIVE";
+let wakeLock = null;
+
+// ================= AUDIO =================
+function initAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+function beep(freq, duration, vol = 0.3) {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.frequency.value = freq; osc.type = 'sine';
+    gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration / 1000);
+    osc.start(); osc.stop(audioCtx.currentTime + duration / 1000);
+}
+function beepNext()     { beep(1000, 80, 0.25); }
+function beepSpeak()    { beep(700, 150, 0.3); }
+function beepSentence() { beep(400, 450, 0.35); }
+function beepError()    { beep(180, 120, 0.25); setTimeout(() => beep(180, 120, 0.25), 160); }
+
+function speak(text) {
+    document.getElementById('speakIcon').classList.toggle('active', false);
+    if (!useVoice || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.9; u.pitch = 1.0; u.volume = 1.0;
+    u.onstart = () => { isSpeaking = true; document.getElementById('speakIcon').classList.add('active'); };
+    u.onend = () => { isSpeaking = false; document.getElementById('speakIcon').classList.remove('active'); };
+    window.speechSynthesis.speak(u);
+}
+
+// ================= EAR MATH (unchanged) =================
+function dist(p1, p2) { return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2); }
+function eyeAspectRatio(landmarks, indices) {
+    const p = indices.map(i => landmarks[i]);
+    const A = dist(p[1], p[5]);
+    const B = dist(p[2], p[4]);
+    const C = dist(p[0], p[3]);
+    return (A + B) / (2.0 * C);
+}
+
+// ================= BLINK CLASSIFICATION =================
+function classifyBlink(duration) {
+    if (duration < NOISE_MAX) return "NOISE";
+    if (duration > MAX_BLINK) return "RESET";
+    if (duration >= SHORT_MIN && duration <= SHORT_MAX) return "SHORT";
+    if (duration >= LONG_MIN && duration <= LONG_MAX) return "LONG";
+    if (duration >= SENTENCE_MIN) return "SENTENCE";
+    return "INVALID";
+}
+
+// ================= WORD GRID =================
+function buildGrid() {
+    const grid = document.getElementById('wordGrid');
+    grid.innerHTML = "";
+    WORDS.forEach((w, i) => {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.textContent = w;
+        cell.dataset.index = i;
+        grid.appendChild(cell);
+    });
+    updateHighlight();
+}
+function updateHighlight() {
+    document.querySelectorAll('.cell').forEach((c, i) => {
+        c.classList.toggle('selected', i === currentIndex);
+    });
+}
+function flashCell(index, cls) {
+    const cell = document.querySelector(`.cell[data-index="${index}"]`);
+    if (!cell) return;
+    cell.classList.add(cls);
+    setTimeout(() => cell.classList.remove(cls), 450);
+}
+function flashSentence() {
+    const grid = document.getElementById('wordGrid');
+    grid.classList.add('sentenceFlash');
+    setTimeout(() => grid.classList.remove('sentenceFlash'), 1000);
+}
+
+function updateSentenceDisplay() {
+    const el = document.getElementById('sentenceText');
+    if (sentenceWords.length === 0) {
+        el.textContent = "building...";
+        el.classList.add('empty');
+    } else {
+        el.textContent = sentenceWords.join(" ");
+        el.classList.remove('empty');
+    }
+}
+
+// ---- The three core actions ----
+function nextWord() {
+    currentIndex = (currentIndex + 1) % WORDS.length;
+    updateHighlight();
+    beepNext();
+    lastAction = "NEXT → " + WORDS[currentIndex];
+    updateDebugUI();
+}
+function speakWord() {
+    const w = WORDS[currentIndex];
+    sentenceWords.push(w);
+    updateSentenceDisplay();
+    speak(w);
+    beepSpeak();
+    flashCell(currentIndex, 'flashSpeak');
+    lastAction = "SPEAK: " + w;
+    updateDebugUI();
+}
+function speakSentence() {
+    if (sentenceWords.length === 0) {
+        lastAction = "No words yet - nothing to speak";
+        beepError();
+        updateDebugUI();
+        return;
+    }
+    const sentence = sentenceWords.join(" ");
+    speak(sentence);
+    beepSentence();
+    flashSentence();
+    lastAction = ">>> SENTENCE: " + sentence;
+    sentenceWords = [];
+    updateSentenceDisplay();
+    updateDebugUI();
+}
+function resetToFirst() {
+    currentIndex = 0;
+    updateHighlight();
+    lastAction = "Reset to first word";
+    updateDebugUI();
+}
+
+// ================= BLINK STATE MACHINE (shared by camera + manual test button) =================
+function onBlinkStart(now) {
+    if (eyeClosed) return;
+    eyeClosed = true;
+    blinkStartTime = now;
+    systemStatus = "EYE CLOSED";
+    updateDebugUI();
+    requestAnimationFrame(tickProgress);
+}
+function onBlinkEnd(now) {
+    if (!eyeClosed) return;
+    eyeClosed = false;
+    const duration = now - blinkStartTime;
+    systemStatus = "ACTIVE";
+    const type = classifyBlink(duration);
+
+    if (type === "SHORT") nextWord();
+    else if (type === "LONG") speakWord();
+    else if (type === "SENTENCE") speakSentence();
+    else if (type === "NOISE") { lastAction = "Ignored (too brief)"; }
+    else if (type === "RESET") { lastAction = "Long pause - resuming"; }
+    else { lastAction = `Not recognized (${duration.toFixed(0)}ms)`; beepError(); }
+
+    resetProgress();
+    updateDebugUI();
+}
+function tickProgress() {
+    if (!eyeClosed) return;
+    const elapsed = performance.now() - blinkStartTime;
+    updateProgressBar(elapsed);
+    requestAnimationFrame(tickProgress);
+}
+function updateProgressBar(elapsed) {
+    const fill = document.getElementById('progressFill');
+    const label = document.getElementById('progressLabel');
+    fill.classList.remove('pulseRed');
+    const pct = Math.min(100, (elapsed / SENTENCE_MIN) * 100);
+    fill.style.width = pct + "%";
+
+    if (elapsed < SHORT_MIN) {
+        fill.style.background = "#333"; label.textContent = "Holding..."; label.style.color = "#666";
+    } else if (elapsed <= SHORT_MAX) {
+        fill.style.background = "#22ff6a"; label.textContent = "✓ Release now → NEXT"; label.style.color = "#22ff6a";
+    } else if (elapsed < LONG_MIN) {
+        fill.style.background = "#665500"; label.textContent = "Keep holding..."; label.style.color = "#a08000";
+    } else if (elapsed <= LONG_MAX) {
+        fill.style.background = "#38bdf8"; label.textContent = "✓ Release now → SPEAK WORD"; label.style.color = "#38bdf8";
+    } else if (elapsed < SENTENCE_MIN) {
+        fill.style.background = "#663300"; label.textContent = "Keep holding for SENTENCE..."; label.style.color = "#c07030";
+    } else {
+        fill.style.background = "#ff5050"; fill.classList.add('pulseRed');
+        label.textContent = "✓ Release now → SPEAK SENTENCE"; label.style.color = "#ff5050";
+    }
+}
+function resetProgress() {
+    const fill = document.getElementById('progressFill');
+    fill.style.width = "0%"; fill.style.background = "#333"; fill.classList.remove('pulseRed');
+    document.getElementById('progressLabel').textContent = "Watching for blink...";
+    document.getElementById('progressLabel').style.color = "#666";
+}
+
+// ================= DEBUG / STATUS UI =================
+function updateDebugUI() {
+    document.getElementById('statusText').textContent = systemStatus;
+    document.getElementById('lastVal').textContent = lastAction;
+    document.getElementById('threshText').textContent = earThreshold.toFixed(2);
+}
+
+// ================= MANUAL / CAREGIVER CONTROLS =================
+function manualNext() { nextWord(); }
+function manualSpeakWord() { speakWord(); }
+function manualSpeakSentence() { speakSentence(); }
+function manualClearSentence() {
+    sentenceWords = [];
+    updateSentenceDisplay();
+    lastAction = "Sentence cleared";
+    updateDebugUI();
+}
+function toggleVoice() {
+    useVoice = !useVoice;
+    document.getElementById('voiceBtn').innerHTML = useVoice ? "VOICE<br>ON" : "VOICE<br>OFF";
+}
+function toggleCamPanel() {
+    document.getElementById('camPanel').classList.toggle('open');
+}
+function toggleCaregiverPanel() {
+    document.getElementById('caregiverPanel').classList.toggle('open');
+}
+
+// Hold-to-simulate-blink button, reuses the exact same state machine as the camera
+(function setupSimButton() {
+    const btn = document.getElementById('simBtn');
+    const start = (e) => { e.preventDefault(); onBlinkStart(performance.now()); };
+    const end = (e) => { e.preventDefault(); onBlinkEnd(performance.now()); };
+    btn.addEventListener('mousedown', start);
+    btn.addEventListener('touchstart', start);
+    btn.addEventListener('mouseup', end);
+    btn.addEventListener('mouseleave', (e) => { if (eyeClosed) end(e); });
+    btn.addEventListener('touchend', end);
+})();
+
+// ================= CALIBRATION (same approach as the original EAR-based app) =================
+function toggleCal() {
+    const overlay = document.getElementById('calibrationOverlay');
+    if (overlay.style.display === 'flex') { overlay.style.display = 'none'; return; }
+    calStep = 0; calSum = 0; calCount = 0;
+    document.getElementById('calTitle').textContent = "CALIBRATION";
+    document.getElementById('calText').innerHTML = "Keep eye <b>OPEN</b><br>Stare at the screen";
+    document.getElementById('calValue').textContent = "--";
+    document.getElementById('calBtn').textContent = "START";
+    overlay.style.display = 'flex';
+}
+function nextCalibrationStep() {
+    const btn = document.getElementById('calBtn');
+    if (calStep === 0) {
+        btn.textContent = "SAMPLING..."; btn.disabled = true;
+        calSum = 0; calCount = 0;
+        calInterval = setInterval(() => {
+            calSum += lastEAR; calCount++;
+            document.getElementById('calValue').textContent = (calSum / calCount).toFixed(3);
+        }, 50);
+        setTimeout(() => {
+            clearInterval(calInterval);
+            sensorOpenEAR = calSum / calCount;
+            calStep = 1; btn.disabled = false; btn.textContent = "NEXT";
+            document.getElementById('calText').innerHTML = "Now <b>CLOSE</b> your eye<br>Hold it closed";
+            document.getElementById('calValue').textContent = "--";
+        }, 3000);
+    } else if (calStep === 1) {
+        btn.textContent = "SAMPLING..."; btn.disabled = true;
+        calSum = 0; calCount = 0;
+        calInterval = setInterval(() => {
+            calSum += lastEAR; calCount++;
+            document.getElementById('calValue').textContent = (calSum / calCount).toFixed(3);
+        }, 50);
+        setTimeout(() => {
+            clearInterval(calInterval);
+            sensorClosedEAR = calSum / calCount;
+            earThreshold = (sensorOpenEAR + sensorClosedEAR) / 2;
+            calibrated = true; btn.disabled = false; btn.textContent = "DONE";
+            document.getElementById('calText').innerHTML =
+                `Open: ${sensorOpenEAR.toFixed(3)}<br>Close: ${sensorClosedEAR.toFixed(3)}<br>Threshold: ${earThreshold.toFixed(3)}`;
+            calStep = 2;
+        }, 3000);
+    } else {
+        document.getElementById('calibrationOverlay').style.display = 'none';
+        lastAction = "Calibrated!";
+        updateDebugUI();
+    }
+}
+
+// ================= CAMERA MAIN LOOP =================
+function onResults(results) {
+    const now = performance.now();
+    ctx.save();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(-1, 1);
+    ctx.translate(-canvas.width, 0);
+    if (results.image) ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+    let ear = lastEAR;
+    let faceDetected = false;
+
+    if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+        faceDetected = true;
+        const lm = results.multiFaceLandmarks[0];
+        [...LEFT_EYE, ...RIGHT_EYE].forEach(idx => {
+            const p = lm[idx];
+            ctx.beginPath();
+            ctx.arc(p.x * canvas.width, p.y * canvas.height, 2, 0, 2 * Math.PI);
+            ctx.fillStyle = "#22ff6a"; ctx.fill();
+        });
+        const leftEAR = eyeAspectRatio(lm, LEFT_EYE);
+        const rightEAR = eyeAspectRatio(lm, RIGHT_EYE);
+        ear = (leftEAR + rightEAR) / 2.0;
+        lastEAR = ear;
+    }
+    ctx.restore();
+
+    const barPct = Math.max(0, Math.min(100, (ear / 0.40) * 100));
+    const bar = document.getElementById('earFill');
+    bar.style.width = barPct + "%";
+    bar.className = ear < earThreshold ? "closed" : "";
+    document.getElementById('earText').textContent = ear.toFixed(2);
+
+    if (faceDetected) {
+        if (ear < earThreshold) {
+            if (!eyeClosed) onBlinkStart(now);
+        } else {
+            if (eyeClosed) onBlinkEnd(now);
+        }
+    }
+}
+
+// ================= STARTUP =================
+async function startApp(silent) {
+    useVoice = !silent;
+    initAudio();
+    document.getElementById('startScreen').style.display = 'none';
+
+    buildGrid();
+    updateSentenceDisplay();
+
+    video = document.getElementById('videoElement');
+    canvas = document.getElementById('canvasOverlay');
+    ctx = canvas.getContext('2d');
+    const wrap = document.getElementById('videoWrap');
+    canvas.width = wrap.clientWidth || 90;
+    canvas.height = wrap.clientHeight || 68;
+
+    if ('wakeLock' in navigator) {
+        try { wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { /* ignore */ }
+    }
+
+    faceMesh = new FaceMesh({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}` });
+    faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+    faceMesh.onResults(onResults);
+
+    camera = new Camera(video, {
+        onFrame: async () => { await faceMesh.send({ image: video }); },
+        width: 640, height: 480, facingMode: "user"
+    });
+
+    try {
+        await camera.start();
+        lastAction = "Camera started";
+        updateDebugUI();
+        setTimeout(() => { if (!calibrated) toggleCal(); }, 1500);
+    } catch (err) {
+        alert("Camera error: " + err.message);
+        console.error(err);
+    }
+}
+
+window.addEventListener('resize', () => {
+    if (canvas) {
+        const wrap = document.getElementById('videoWrap');
+        canvas.width = wrap.clientWidth; canvas.height = wrap.clientHeight;
+    }
+});
+document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible' && camera && wakeLock === null && 'wakeLock' in navigator) {
+        try { wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
+    }
+});
+</script>
+</body>
+</html>
