@@ -4,78 +4,88 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>BLINK-SPEAK - Simple Eye Blink Communicator</title>
+<title>BLINKSPEAK — Adaptive Eye-Blink Communicator</title>
 <style>
+    :root{
+        --bg:#000; --panel:#0a0a0a; --border:#1c1c1c; --border2:#262626;
+        --green:#22ff6a; --blue:#38bdf8; --red:#ff5050; --cyan:#22e5ff; --pink:#ff9fe0;
+    }
     * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
     html, body {
-        background:#000; color:#fff; height:100%; width:100%;
+        background:var(--bg); color:#fff; height:100%; width:100%;
         font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         overflow:hidden; touch-action:none;
     }
+    button:focus-visible, input:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
 
     /* ---------- START SCREEN ---------- */
     #startScreen {
         position:fixed; inset:0; background:#000; z-index:100;
         display:flex; flex-direction:column; align-items:center; justify-content:center;
-        text-align:center; padding:24px;
+        text-align:center; padding:24px; overflow-y:auto;
     }
-    #startScreen h1 { color:#22ff6a; font-size:26px; margin-bottom:14px; }
+    #startScreen h1 { color:var(--green); font-size:28px; letter-spacing:1px; margin-bottom:4px; }
+    #startScreen .subtitle { color:#888; font-size:13px; margin-bottom:16px; letter-spacing:0.5px; }
     #startScreen .legend {
         text-align:left; background:#111; border:1px solid #222; border-radius:12px;
-        padding:14px 18px; margin-bottom:22px; max-width:320px; width:100%;
+        padding:14px 18px; margin-bottom:20px; max-width:320px; width:100%;
     }
-    #startScreen .legend div { font-size:15px; margin:6px 0; color:#ddd; }
+    #startScreen .legend div { font-size:14px; margin:6px 0; color:#ddd; }
     #startScreen .legend b { color:#fff; }
-    #startScreen .tagS { color:#22ff6a; font-weight:800; }
-    #startScreen .tagL { color:#38bdf8; font-weight:800; }
-    #startScreen .tagX { color:#ff5050; font-weight:800; }
+    .tagS { color:var(--green); font-weight:800; }
+    .tagL { color:var(--blue); font-weight:800; }
+    .tagX { color:var(--red); font-weight:800; }
     .btn {
-        background:#22ff6a; color:#000; border:none; padding:16px 32px; font-size:18px;
-        font-weight:800; border-radius:12px; cursor:pointer; margin:6px; width:280px;
-        box-shadow:0 0 20px rgba(34,255,106,0.35);
+        background:var(--green); color:#000; border:none; padding:14px 28px; font-size:16px;
+        font-weight:800; border-radius:12px; cursor:pointer; margin:6px; width:290px;
+        box-shadow:0 0 20px rgba(34,255,106,0.30); line-height:1.3;
     }
     .btn:active { transform:scale(0.96); }
-    .btn.secondary { background:#222; color:#fff; font-size:15px; padding:12px 24px; box-shadow:none; }
-    #startScreen .note { font-size:12px; color:#666; margin-top:16px; max-width:300px; }
+    .btn.secondary { background:#161616; color:#fff; box-shadow:none; border:1px solid var(--cyan); }
+    .btnSub { display:block; font-size:10.5px; font-weight:500; opacity:0.8; margin-top:3px; }
+    .modeChoice { display:flex; flex-direction:column; align-items:center; }
+    .voiceRow { display:flex; align-items:center; gap:8px; font-size:13px; color:#ccc; margin:12px 0 4px; }
+    .voiceRow input { width:16px; height:16px; }
+    #startScreen .note { font-size:12px; color:#666; margin-top:14px; max-width:300px; }
 
-    /* ---------- CALIBRATION (unchanged approach from original EAR app) ---------- */
+    /* ---------- CALIBRATION ---------- */
     #calibrationOverlay {
         position:fixed; inset:0; background:rgba(0,0,0,0.97); z-index:90; display:none;
         flex-direction:column; align-items:center; justify-content:center; text-align:center;
     }
     #calibrationOverlay h2 { color:#ffd400; font-size:22px; margin-bottom:18px; }
     #calibrationOverlay p { color:#fff; font-size:17px; margin-bottom:26px; padding:0 20px; line-height:1.5; }
-    .calValue { color:#38bdf8; font-size:30px; font-weight:800; }
+    .calValue { color:var(--blue); font-size:30px; font-weight:800; }
 
     /* ---------- APP SHELL ---------- */
     #app { position:relative; width:100vw; height:100dvh; display:flex; flex-direction:column; }
+    #app.paused #wordGrid, #app.paused #morseModePanel { opacity:0.35; filter:grayscale(70%); pointer-events:none; }
 
-    /* Top bar: sentence + camera toggle */
+    /* Brand bar */
+    #brandBar { display:flex; align-items:center; gap:8px; padding:6px 12px; background:#000; border-bottom:1px solid var(--border); z-index:6; }
+    #brandMark { font-size:12px; font-weight:800; color:var(--green); letter-spacing:0.5px; white-space:nowrap; }
+    .badge { font-size:10px; font-weight:800; padding:3px 9px; border-radius:20px; letter-spacing:0.5px; }
+    .badgeWord { background:#0d2416; color:var(--green); border:1px solid #1a4a2a; }
+    .badgeMorse { background:#04262b; color:var(--cyan); border:1px solid #0a4a52; }
+    #pauseDot { margin-left:auto; font-size:10px; font-weight:800; color:#ffb020; display:none; }
+
+    /* Top bar: message + camera toggle */
     #topBar {
         display:flex; align-items:center; gap:10px; padding:10px 12px;
-        background:#0a0a0a; border-bottom:1px solid #1c1c1c; z-index:5;
+        background:#0a0a0a; border-bottom:1px solid var(--border); z-index:5;
     }
-    #sentenceWrap { flex:1; min-width:0; }
-    #sentenceLabel { font-size:10px; color:#666; font-weight:700; letter-spacing:1px; }
-    #sentenceText {
-        font-size:17px; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden;
-        text-overflow:ellipsis;
-    }
-    #sentenceText.empty { color:#555; font-weight:400; font-style:italic; }
+    #messageWrap { flex:1; min-width:0; }
+    #messageLabel { font-size:10px; color:#666; font-weight:700; letter-spacing:1px; }
+    #messageText { font-size:17px; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #messageText.empty { color:#555; font-weight:400; font-style:italic; }
     #speakIcon { font-size:20px; opacity:0.15; transition:opacity 0.2s; }
     #speakIcon.active { opacity:1; animation:pulseIcon 0.6s infinite; }
     @keyframes pulseIcon { 0%,100%{transform:scale(1)} 50%{transform:scale(1.25)} }
-    .iconBtn {
-        background:#181818; border:1px solid #2a2a2a; color:#ccc; width:38px; height:38px;
-        border-radius:10px; font-size:16px; cursor:pointer; flex-shrink:0;
-    }
+    .iconBtn { background:#181818; border:1px solid #2a2a2a; color:#ccc; width:38px; height:38px; border-radius:10px; font-size:16px; cursor:pointer; flex-shrink:0; }
     .iconBtn:active { background:#2a2a2a; }
 
     /* Collapsible camera / debug panel */
-    #camPanel {
-        display:none; background:#0a0a0a; border-bottom:1px solid #1c1c1c; padding:8px 12px 10px;
-        z-index:5;
-    }
+    #camPanel { display:none; background:#0a0a0a; border-bottom:1px solid var(--border); padding:8px 12px 10px; z-index:5; }
     #camPanel.open { display:block; }
     #camRow { display:flex; gap:10px; align-items:flex-start; }
     #videoWrap { position:relative; width:90px; height:68px; border-radius:8px; overflow:hidden; flex-shrink:0; background:#111; }
@@ -84,16 +94,33 @@
     #debugInfo { flex:1; min-width:0; font-size:11px; color:#888; line-height:1.6; }
     #debugInfo b { color:#ccc; }
     #earBarTrack { width:100%; height:5px; background:#222; border-radius:3px; margin-top:3px; overflow:hidden; }
-    #earFill { height:100%; width:50%; background:#22ff6a; transition:width 0.1s, background 0.2s; }
-    #earFill.closed { background:#ff5050; }
+    #earFill { height:100%; width:50%; background:var(--green); transition:width 0.1s, background 0.2s; }
+    #earFill.closed { background:var(--red); }
 
-    /* Blink progress bar - the key real-time feedback for the patient */
+    /* Graduation suggestion banner */
+    #suggestionBanner { display:none; background:#0d2416; border-bottom:1px solid #1a4a2a; padding:10px 14px; z-index:6; }
+    #suggestionBanner.show { display:block; }
+    .sbText { font-size:13px; color:#eaffea; margin-bottom:8px; line-height:1.4; }
+    .sbButtons { display:flex; gap:6px; }
+    .sbBtn { flex:1; background:#1a3324; border:1px solid #2a5a3a; color:#fff; padding:8px 4px; font-size:10.5px; font-weight:700; border-radius:8px; cursor:pointer; }
+    .sbBtn.primary { background:var(--green); color:#000; border-color:var(--green); }
+    .sbBtn.ghost { background:transparent; border-color:#333; color:#888; }
+
+    /* Blink progress bar */
     #progressWrap { padding:8px 12px; background:#050505; z-index:5; }
     #progressLabel { font-size:12px; font-weight:700; text-align:center; margin-bottom:5px; color:#666; min-height:16px; transition:color 0.15s; }
     #progressTrack { width:100%; height:10px; background:#161616; border-radius:6px; overflow:hidden; border:1px solid #222; }
     #progressFill { height:100%; width:0%; background:#333; border-radius:6px; transition:background-color 0.15s; }
     #progressFill.pulseRed { animation:pulseRed 0.4s infinite; }
     @keyframes pulseRed { 0%,100%{opacity:1} 50%{opacity:0.55} }
+
+    /* Content area (word grid OR morse panel) */
+    #contentArea { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+    .flashPulse { animation:sentencePulse 0.5s ease 2; }
+    @keyframes sentencePulse {
+        0%,100% { box-shadow:inset 0 0 0 rgba(255,80,80,0); }
+        50% { box-shadow:inset 0 0 40px rgba(255,80,80,0.4); }
+    }
 
     /* Word grid */
     #wordGrid {
@@ -107,56 +134,70 @@
         letter-spacing:0.5px; transition:border-color 0.2s, background 0.2s, box-shadow 0.2s, transform 0.15s;
     }
     .cell.selected {
-        border-color:#22ff6a; background:#0d2416; color:#fff; transform:scale(1.03);
+        border-color:var(--green); background:#0d2416; color:#fff; transform:scale(1.03);
         box-shadow:0 0 18px rgba(34,255,106,0.5), inset 0 0 14px rgba(34,255,106,0.18);
     }
     .cell.flashSpeak {
-        border-color:#38bdf8 !important; background:#0a2740 !important;
+        border-color:var(--blue) !important; background:#0a2740 !important;
         box-shadow:0 0 22px rgba(56,189,248,0.65) !important;
     }
-    #wordGrid.sentenceFlash { animation:sentencePulse 0.5s ease 2; }
-    @keyframes sentencePulse {
-        0%,100% { box-shadow:inset 0 0 0 rgba(255,80,80,0); }
-        50% { box-shadow:inset 0 0 40px rgba(255,80,80,0.4); }
-    }
+
+    /* Morse panel */
+    #morseModePanel { flex:1; display:none; flex-direction:column; gap:10px; padding:14px 16px; overflow-y:auto; }
+    .morseInfoRow { display:flex; justify-content:space-between; align-items:center; font-size:14px; padding:12px 14px; background:#0a0a0a; border:1px solid var(--border); border-radius:10px; }
+    .miLabel { color:#888; font-weight:700; font-size:11px; letter-spacing:1px; }
+    .miValue { font-weight:800; font-size:22px; font-family:'SF Mono', Consolas, monospace; }
+    .morseColor { color:var(--cyan); letter-spacing:5px; }
+    .wordColor { color:var(--pink); letter-spacing:1px; }
+    #morseCountdown { text-align:center; font-size:12px; color:#888; min-height:16px; }
+    .morseHint { text-align:center; font-size:11px; color:#555; }
+    .linkBtn { background:none; border:1px solid #2a2a2a; color:var(--blue); font-size:12px; padding:9px; border-radius:8px; width:100%; font-weight:700; cursor:pointer; }
+    #morseReference { display:none; grid-template-columns:repeat(4,1fr); gap:5px; margin-top:2px; max-height:180px; overflow-y:auto; background:#0a0a0a; border:1px solid var(--border); border-radius:8px; padding:8px; }
+    #morseReference.open { display:grid; }
+    .refItem { display:flex; justify-content:space-between; font-size:11px; padding:4px 6px; background:#141414; border-radius:4px; }
+    .refLetter { color:var(--pink); font-weight:800; }
+    .refCode { color:var(--cyan); font-family:monospace; letter-spacing:2px; }
 
     /* Legend footer */
-    #legendBar {
-        display:flex; justify-content:space-around; padding:8px 6px; background:#0a0a0a;
-        border-top:1px solid #1c1c1c; font-size:11px; font-weight:700; z-index:5;
-    }
-    #legendBar span.tagS { color:#22ff6a; }
-    #legendBar span.tagL { color:#38bdf8; }
-    #legendBar span.tagX { color:#ff5050; }
+    #legendBar { display:flex; justify-content:space-around; padding:8px 6px; background:#0a0a0a; border-top:1px solid var(--border); font-size:11px; font-weight:700; z-index:5; }
+    #legendBar span.tagS { color:var(--green); }
+    #legendBar span.tagL { color:var(--blue); }
+    #legendBar span.tagX { color:var(--red); }
 
     /* Caregiver panel */
-    #caregiverPanel {
-        display:none; background:#0a0a0a; border-top:1px solid #1c1c1c; padding:10px 12px;
-        z-index:5;
-    }
+    #caregiverPanel { display:none; background:#0a0a0a; border-top:1px solid var(--border); padding:10px 12px; max-height:60vh; overflow-y:auto; z-index:5; }
     #caregiverPanel.open { display:block; }
-    #caregiverGrid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
-    .ctrlBtn {
-        background:#181818; border:1px solid #2a2a2a; color:#fff; padding:10px 6px;
-        font-size:12px; font-weight:700; border-radius:8px; cursor:pointer; text-align:center;
-    }
+    .cgSection { font-size:10px; font-weight:800; letter-spacing:1px; color:#555; margin:10px 0 6px; }
+    .cgSection:first-child { margin-top:0; }
+    .caregiverGrid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+    .ctrlBtn { background:#181818; border:1px solid #2a2a2a; color:#fff; padding:10px 6px; font-size:11.5px; font-weight:700; border-radius:8px; cursor:pointer; text-align:center; }
     .ctrlBtn:active { background:#2a2a2a; }
     .ctrlBtn.hold { touch-action:none; }
+    .ctrlBtn.full { width:100%; margin-top:6px; }
+    #proficiencyStats { font-size:11.5px; color:#aaa; text-align:center; background:#0a0a0a; border:1px solid var(--border); border-radius:8px; padding:8px; line-height:1.5; }
     #lastActionRow { font-size:11px; color:#666; margin-top:8px; text-align:center; }
+
+    @media (prefers-reduced-motion: reduce) {
+        * { animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; }
+    }
 </style>
 </head>
 <body>
 
 <!-- ============ START SCREEN ============ -->
 <div id="startScreen">
-    <h1>👁️ BLINK-SPEAK</h1>
+    <h1>👁️ BLINKSPEAK</h1>
+    <div class="subtitle">Adaptive Eye-Blink Communication</div>
     <div class="legend">
-        <div><span class="tagS">● SHORT blink</span> (¼–¾s) → <b>Next word</b></div>
-        <div><span class="tagL">● LONG blink</span> (¾–1.5s) → <b>Speak word</b></div>
-        <div><span class="tagX">● 3+ sec blink</span> → <b>Speak full sentence & clear</b></div>
+        <div><span class="tagS">● SHORT blink</span> (¼–¾s) → <b>Next word</b> / <b>Dot</b></div>
+        <div><span class="tagL">● LONG blink</span> (¾–1.5s) → <b>Speak word</b> / <b>Dash</b></div>
+        <div><span class="tagX">● 3+ sec blink</span> → <b>Speak &amp; clear message</b></div>
     </div>
-    <button class="btn" onclick="startApp(false)">▶ START CAMERA</button>
-    <button class="btn secondary" onclick="startApp(true)">▶ START (No Voice)</button>
+    <div class="modeChoice">
+        <button class="btn" onclick="startApp('WORD')">▶ START — WORD BOX<span class="btnSub">Recommended for first-time use</span></button>
+        <button class="btn secondary" onclick="startApp('MORSE')">▶ START — MORSE CODE<span class="btnSub">For trained / advanced users</span></button>
+    </div>
+    <label class="voiceRow"><input type="checkbox" id="voiceCheckbox" checked> 🔊 Voice output enabled</label>
     <p class="note">Prop the device 30–50cm from the patient's face in good lighting. Calibration will run automatically after the camera starts.</p>
 </div>
 
@@ -170,10 +211,16 @@
 
 <!-- ============ MAIN APP ============ -->
 <div id="app">
+    <div id="brandBar">
+        <span id="brandMark">👁️ BLINKSPEAK</span>
+        <span id="modeBadge" class="badge badgeWord">WORD BOX</span>
+        <span id="pauseDot">⏸ PAUSED</span>
+    </div>
+
     <div id="topBar">
-        <div id="sentenceWrap">
-            <div id="sentenceLabel">SENTENCE</div>
-            <div id="sentenceText" class="empty">building...</div>
+        <div id="messageWrap">
+            <div id="messageLabel">MESSAGE</div>
+            <div id="messageText" class="empty">building...</div>
         </div>
         <div id="speakIcon">🔊</div>
         <button class="iconBtn" id="camToggleBtn" onclick="toggleCamPanel()" title="Camera/debug">📷</button>
@@ -195,31 +242,69 @@
         </div>
     </div>
 
+    <div id="suggestionBanner">
+        <div class="sbText">🎓 Great progress! Ready to try <b>Morse Code</b> for unlimited vocabulary?</div>
+        <div class="sbButtons">
+            <button class="sbBtn primary" onclick="acceptSuggestion()">Try Morse Mode</button>
+            <button class="sbBtn" onclick="remindLaterSuggestion()">Keep Practicing</button>
+            <button class="sbBtn ghost" onclick="neverShowSuggestion()">Don't ask again</button>
+        </div>
+    </div>
+
     <div id="progressWrap">
         <div id="progressLabel">Watching for blink...</div>
         <div id="progressTrack"><div id="progressFill"></div></div>
     </div>
 
-    <div id="wordGrid"></div>
+    <div id="contentArea">
+        <div id="wordGrid"></div>
+        <div id="morseModePanel">
+            <div class="morseInfoRow"><span class="miLabel">MORSE</span><span class="miValue morseColor" id="morseVal">-</span></div>
+            <div class="morseInfoRow"><span class="miLabel">LETTERS</span><span class="miValue wordColor" id="morseWordVal">-</span></div>
+            <div id="morseCountdown"></div>
+            <div class="morseHint">6 dots in a row (······) also triggers SPEAK &amp; CLEAR</div>
+            <button class="linkBtn" onclick="toggleMorseReference()">📖 Morse code reference</button>
+            <div id="morseReference"></div>
+        </div>
+    </div>
 
     <div id="legendBar">
-        <span class="tagS">SHORT = Next</span>
-        <span class="tagL">LONG = Speak</span>
-        <span class="tagX">3s = Sentence</span>
+        <span class="tagS" id="legendShort">SHORT = Next</span>
+        <span class="tagL" id="legendLong">LONG = Speak</span>
+        <span class="tagX">3s = Speak &amp; Clear</span>
     </div>
 
     <div id="caregiverPanel">
-        <div id="caregiverGrid">
-            <button class="ctrlBtn" onclick="manualNext()">NEXT<br>Word</button>
-            <button class="ctrlBtn" onclick="manualSpeakWord()">SPEAK<br>Word</button>
-            <button class="ctrlBtn" onclick="manualSpeakSentence()">SPEAK<br>Sentence</button>
-            <button class="ctrlBtn" onclick="manualClearSentence()">CLEAR<br>Sentence</button>
-            <button class="ctrlBtn" onclick="resetToFirst()">RESET<br>Highlight</button>
+        <div class="cgSection">MODE &amp; SYSTEM</div>
+        <div class="caregiverGrid">
+            <button class="ctrlBtn" id="modeSwitchBtn" onclick="toggleModeManual()">SWITCH TO<br>MORSE CODE</button>
+            <button class="ctrlBtn" id="pauseBtn" onclick="togglePause()">PAUSE<br>System</button>
             <button class="ctrlBtn" onclick="toggleCal()">CAL<br>Calibrate</button>
             <button class="ctrlBtn" onclick="toggleVoice()" id="voiceBtn">VOICE<br>ON</button>
             <button class="ctrlBtn hold" id="simBtn">HOLD TO<br>SIM. BLINK</button>
             <button class="ctrlBtn" onclick="toggleCamPanel()">TOGGLE<br>CAMERA VIEW</button>
         </div>
+
+        <div class="cgSection">ACTIONS</div>
+        <div class="caregiverGrid" id="wordCaregiverGrid">
+            <button class="ctrlBtn" onclick="manualNext()">NEXT<br>Word</button>
+            <button class="ctrlBtn" onclick="manualSpeakWord()">SPEAK<br>Word</button>
+            <button class="ctrlBtn" onclick="manualSpeakAndClear()">SPEAK &amp; CLEAR<br>Message</button>
+            <button class="ctrlBtn" onclick="manualClearMessage()">CLEAR<br>Message</button>
+            <button class="ctrlBtn" onclick="resetToFirst()">RESET<br>Highlight</button>
+        </div>
+        <div class="caregiverGrid" id="morseCaregiverGrid" style="display:none;">
+            <button class="ctrlBtn" onclick="forceLetter()">SPACE<br>Letter</button>
+            <button class="ctrlBtn" onclick="forceWord()">SPEAK<br>Word</button>
+            <button class="ctrlBtn" onclick="manualSpeakAndClear()">SPEAK &amp; CLEAR<br>Message</button>
+            <button class="ctrlBtn" onclick="manualClearMessage()">CLEAR<br>Message</button>
+            <button class="ctrlBtn" onclick="toggleMorseReference()">📖<br>Reference</button>
+        </div>
+
+        <div class="cgSection">PROFICIENCY</div>
+        <div id="proficiencyStats">Word Box: 0/0 (--) &nbsp;·&nbsp; Morse: 0/0 (--)</div>
+        <button class="ctrlBtn full" onclick="resetProficiency()">RESET<br>Proficiency Stats</button>
+
         <div id="lastActionRow">Manual controls for testing / caregiver override</div>
     </div>
 </div>
@@ -228,13 +313,23 @@
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 
 <script>
-// ================= CONFIG (matches the requested spec) =================
+// ================= CONFIG =================
+// Both source apps (Word Box + Morse) already used near-identical blink-timing
+// windows, which is what makes a single shared blink engine possible.
 const EAR_THRESHOLD_DEFAULT = 0.20;
-const NOISE_MAX   = 100;    // <100ms = camera jitter, ignore
-const SHORT_MIN   = 250, SHORT_MAX = 700;     // NEXT word
-const LONG_MIN    = 800,  LONG_MAX = 1500;    // SPEAK word
-const SENTENCE_MIN = 3000;                    // SPEAK sentence & clear
-const MAX_BLINK   = 10000;  // >10s = probably looked away / rested eyes, ignore safely
+const NOISE_MAX    = 100;     // <100ms = camera jitter, ignore
+const SHORT_MIN    = 250, SHORT_MAX = 700;    // NEXT word / DOT
+const LONG_MIN     = 800,  LONG_MAX = 1500;   // SPEAK word / DASH
+const SENTENCE_MIN = 3000;                    // SPEAK & CLEAR (both modes)
+const MAX_BLINK    = 10000;   // >10s = probably rested eyes / looked away, ignore safely
+
+const AUTO_LETTER_GAP = 2000; // Morse: pause this long with eyes open -> decode letter
+const AUTO_WORD_GAP   = 4000; // Morse: pause this long -> commit + speak word
+const SENTENCE_DOTS   = 6;    // Morse: 6 dots in a row = shortcut for SPEAK & CLEAR
+
+const GRAD_MIN_ATTEMPTS = 20; // Word Box attempts before a graduation suggestion is possible
+const GRAD_MIN_SUCCESS  = 15; // ...of which at least this many must be recognized correctly
+const GRAD_ACCURACY     = 0.75;
 
 // ================= WORD LIST (edit this array to customize the board) =================
 const WORDS = [
@@ -245,7 +340,16 @@ const WORDS = [
     "HELLO", "GOODBYE", "LOVE"
 ];
 
-// MediaPipe eye landmarks (468-point model) - unchanged from original EAR method
+// ================= MORSE CODE =================
+const MORSE_CODE = {
+    '.-':'A','-...':'B','-.-.':'C','-..':'D','.':'E','..-.':'F','--.':'G','....':'H',
+    '..':'I','.---':'J','-.-':'K','.-..':'L','--':'M','-.':'N','---':'O','.--.':'P',
+    '--.-':'Q','.-.':'R','...':'S','-':'T','..-':'U','...-':'V','.--':'W','-..-':'X',
+    '-.--':'Y','--..':'Z','-----':'0','.----':'1','..---':'2','...--':'3','....-':'4',
+    '.....':'5','-....':'6','--...':'7','---..':'8','----.':'9'
+};
+
+// MediaPipe eye landmarks (468-point model)
 const LEFT_EYE  = [362, 385, 387, 263, 373, 380];
 const RIGHT_EYE = [33, 160, 158, 133, 153, 144];
 
@@ -255,6 +359,8 @@ let faceMesh, camera;
 let audioCtx;
 let useVoice = true;
 let isSpeaking = false;
+let wakeLock = null;
+let paused = false;
 
 let eyeClosed = false;
 let blinkStartTime = 0;
@@ -266,11 +372,26 @@ let sensorClosedEAR = 0.10;
 let calibrated = false;
 let calStep = 0, calSum = 0, calCount = 0, calInterval = null;
 
-let currentIndex = 0;
-let sentenceWords = [];
+let currentMode = 'WORD'; // 'WORD' | 'MORSE'
 let lastAction = "Waiting...";
 let systemStatus = "ACTIVE";
-let wakeLock = null;
+
+// Word Box state
+let currentIndex = 0;
+let sentenceWords = [];
+
+// Morse state
+let currentMorse = "";
+let currentWord = "";
+let fullMessage = "";
+let lastBlinkEndTime = 0;
+
+// Adaptive proficiency tracking (session-based)
+let proficiency = {
+    word:  { success:0, errors:0, wordsSpoken:0, sentencesSpoken:0 },
+    morse: { success:0, errors:0, lettersDecoded:0, wordsSpoken:0, sentencesSpoken:0 }
+};
+let wordSuggestion = { dismissedForever:false, cooldownUntil:0 };
 
 // ================= AUDIO =================
 function initAudio() {
@@ -290,6 +411,10 @@ function beepNext()     { beep(1000, 80, 0.25); }
 function beepSpeak()    { beep(700, 150, 0.3); }
 function beepSentence() { beep(400, 450, 0.35); }
 function beepError()    { beep(180, 120, 0.25); setTimeout(() => beep(180, 120, 0.25), 160); }
+function beepDot()      { beep(1000, 100, 0.28); }
+function beepDash()     { beep(800, 300, 0.28); }
+function beepLetter()   { beep(1200, 200, 0.25); }
+function beepWord()     { beep(1000, 400, 0.3); }
 
 function speak(text) {
     document.getElementById('speakIcon').classList.toggle('active', false);
@@ -302,7 +427,7 @@ function speak(text) {
     window.speechSynthesis.speak(u);
 }
 
-// ================= EAR MATH (unchanged) =================
+// ================= EAR MATH =================
 function dist(p1, p2) { return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2); }
 function eyeAspectRatio(landmarks, indices) {
     const p = indices.map(i => landmarks[i]);
@@ -312,7 +437,7 @@ function eyeAspectRatio(landmarks, indices) {
     return (A + B) / (2.0 * C);
 }
 
-// ================= BLINK CLASSIFICATION =================
+// ================= BLINK CLASSIFICATION (shared by both modes) =================
 function classifyBlink(duration) {
     if (duration < NOISE_MAX) return "NOISE";
     if (duration > MAX_BLINK) return "RESET";
@@ -322,7 +447,7 @@ function classifyBlink(duration) {
     return "INVALID";
 }
 
-// ================= WORD GRID =================
+// ================= WORD GRID (Word Box mode) =================
 function buildGrid() {
     const grid = document.getElementById('wordGrid');
     grid.innerHTML = "";
@@ -348,54 +473,53 @@ function flashCell(index, cls) {
 }
 function flashSentence() {
     const grid = document.getElementById('wordGrid');
-    grid.classList.add('sentenceFlash');
-    setTimeout(() => grid.classList.remove('sentenceFlash'), 1000);
+    grid.classList.add('flashPulse');
+    setTimeout(() => grid.classList.remove('flashPulse'), 1000);
+}
+function flashMorsePanel() {
+    const panel = document.getElementById('morseModePanel');
+    panel.classList.add('flashPulse');
+    setTimeout(() => panel.classList.remove('flashPulse'), 1000);
 }
 
-function updateSentenceDisplay() {
-    const el = document.getElementById('sentenceText');
-    if (sentenceWords.length === 0) {
-        el.textContent = "building...";
-        el.classList.add('empty');
-    } else {
-        el.textContent = sentenceWords.join(" ");
-        el.classList.remove('empty');
-    }
+// ================= SHARED MESSAGE DISPLAY =================
+function updateMessageDisplay() {
+    const el = document.getElementById('messageText');
+    let text = currentMode === 'WORD' ? sentenceWords.join(" ") : (fullMessage + currentWord).trim();
+    if (!text) { el.textContent = "building..."; el.classList.add('empty'); }
+    else { el.textContent = text; el.classList.remove('empty'); }
 }
 
-// ---- The three core actions ----
+// ---- Word Box actions ----
 function nextWord() {
     currentIndex = (currentIndex + 1) % WORDS.length;
     updateHighlight();
     beepNext();
     lastAction = "NEXT → " + WORDS[currentIndex];
-    updateDebugUI();
 }
 function speakWord() {
     const w = WORDS[currentIndex];
     sentenceWords.push(w);
-    updateSentenceDisplay();
+    updateMessageDisplay();
     speak(w);
     beepSpeak();
     flashCell(currentIndex, 'flashSpeak');
     lastAction = "SPEAK: " + w;
-    updateDebugUI();
 }
 function speakSentence() {
     if (sentenceWords.length === 0) {
         lastAction = "No words yet - nothing to speak";
         beepError();
-        updateDebugUI();
         return;
     }
     const sentence = sentenceWords.join(" ");
     speak(sentence);
     beepSentence();
     flashSentence();
-    lastAction = ">>> SENTENCE: " + sentence;
+    lastAction = ">>> MESSAGE: " + sentence;
+    proficiency.word.sentencesSpoken++;
     sentenceWords = [];
-    updateSentenceDisplay();
-    updateDebugUI();
+    updateMessageDisplay();
 }
 function resetToFirst() {
     currentIndex = 0;
@@ -404,94 +528,185 @@ function resetToFirst() {
     updateDebugUI();
 }
 
-// ================= BLINK STATE MACHINE (shared by camera + manual test button) =================
-function onBlinkStart(now) {
-    if (eyeClosed) return;
-    eyeClosed = true;
-    blinkStartTime = now;
-    systemStatus = "EYE CLOSED";
-    updateDebugUI();
-    requestAnimationFrame(tickProgress);
+// ---- Morse actions ----
+function updateMorseUI() {
+    document.getElementById('morseVal').textContent = currentMorse || "-";
+    document.getElementById('morseWordVal').textContent = currentWord || "-";
+    updateMessageDisplay();
 }
-function onBlinkEnd(now) {
-    if (!eyeClosed) return;
-    eyeClosed = false;
-    const duration = now - blinkStartTime;
-    systemStatus = "ACTIVE";
-    const type = classifyBlink(duration);
-
-    if (type === "SHORT") nextWord();
-    else if (type === "LONG") speakWord();
-    else if (type === "SENTENCE") speakSentence();
-    else if (type === "NOISE") { lastAction = "Ignored (too brief)"; }
-    else if (type === "RESET") { lastAction = "Long pause - resuming"; }
-    else { lastAction = `Not recognized (${duration.toFixed(0)}ms)`; beepError(); }
-
-    resetProgress();
-    updateDebugUI();
+function addDot() {
+    currentMorse += ".";
+    lastAction = "DOT (.)";
+    beepDot();
+    lastBlinkEndTime = performance.now();
+    updateMorseUI();
 }
-function tickProgress() {
-    if (!eyeClosed) return;
-    const elapsed = performance.now() - blinkStartTime;
-    updateProgressBar(elapsed);
-    requestAnimationFrame(tickProgress);
+function addDash() {
+    currentMorse += "-";
+    lastAction = "DASH (-)";
+    beepDash();
+    lastBlinkEndTime = performance.now();
+    updateMorseUI();
 }
-function updateProgressBar(elapsed) {
-    const fill = document.getElementById('progressFill');
-    const label = document.getElementById('progressLabel');
-    fill.classList.remove('pulseRed');
-    const pct = Math.min(100, (elapsed / SENTENCE_MIN) * 100);
-    fill.style.width = pct + "%";
-
-    if (elapsed < SHORT_MIN) {
-        fill.style.background = "#333"; label.textContent = "Holding..."; label.style.color = "#666";
-    } else if (elapsed <= SHORT_MAX) {
-        fill.style.background = "#22ff6a"; label.textContent = "✓ Release now → NEXT"; label.style.color = "#22ff6a";
-    } else if (elapsed < LONG_MIN) {
-        fill.style.background = "#665500"; label.textContent = "Keep holding..."; label.style.color = "#a08000";
-    } else if (elapsed <= LONG_MAX) {
-        fill.style.background = "#38bdf8"; label.textContent = "✓ Release now → SPEAK WORD"; label.style.color = "#38bdf8";
-    } else if (elapsed < SENTENCE_MIN) {
-        fill.style.background = "#663300"; label.textContent = "Keep holding for SENTENCE..."; label.style.color = "#c07030";
-    } else {
-        fill.style.background = "#ff5050"; fill.classList.add('pulseRed');
-        label.textContent = "✓ Release now → SPEAK SENTENCE"; label.style.color = "#ff5050";
+function processEndOfLetter() {
+    if (!currentMorse) return;
+    if (currentMorse === ".".repeat(SENTENCE_DOTS)) {
+        currentMorse = "";
+        speakAndClearAll();
+        return;
+    }
+    const letter = MORSE_CODE[currentMorse] || "?";
+    currentWord += letter;
+    lastAction = "Letter: " + letter + " [" + currentMorse + "]";
+    speak(letter);
+    beepLetter();
+    proficiency.morse.lettersDecoded++;
+    currentMorse = "";
+    updateMorseUI();
+}
+function processEndOfWord() {
+    if (currentMorse) processEndOfLetter();
+    if (currentWord) {
+        fullMessage += currentWord + " ";
+        lastAction = "Word: " + currentWord;
+        speak(currentWord);
+        beepWord();
+        proficiency.morse.wordsSpoken++;
+        currentWord = "";
+        updateMorseUI();
     }
 }
-function resetProgress() {
-    const fill = document.getElementById('progressFill');
-    fill.style.width = "0%"; fill.style.background = "#333"; fill.classList.remove('pulseRed');
-    document.getElementById('progressLabel').textContent = "Watching for blink...";
-    document.getElementById('progressLabel').style.color = "#666";
+function toggleMorseReference() {
+    document.getElementById('morseReference').classList.toggle('open');
+}
+function buildMorseReference() {
+    const ref = document.getElementById('morseReference');
+    const items = Object.entries(MORSE_CODE).sort((a, b) => (a[1] < b[1] ? -1 : 1));
+    ref.innerHTML = items.map(([code, letter]) =>
+        `<div class="refItem"><span class="refLetter">${letter}</span><span class="refCode">${code}</span></div>`
+    ).join("");
 }
 
-// ================= DEBUG / STATUS UI =================
-function updateDebugUI() {
-    document.getElementById('statusText').textContent = systemStatus;
-    document.getElementById('lastVal').textContent = lastAction;
-    document.getElementById('threshText').textContent = earThreshold.toFixed(2);
+// ---- Shared "speak everything & clear" action (unified 3+ second gesture) ----
+function speakAndClearAll() {
+    if (currentMode === "WORD") {
+        speakSentence();
+        return;
+    }
+    if (currentMorse) processEndOfLetter();
+    if (currentWord) { fullMessage += currentWord + " "; currentWord = ""; }
+    const msg = fullMessage.trim();
+    if (msg) {
+        speak(msg);
+        beepSentence();
+        flashMorsePanel();
+        lastAction = ">>> MESSAGE: " + msg;
+        proficiency.morse.sentencesSpoken++;
+    } else {
+        lastAction = "No message yet - nothing to speak";
+        beepError();
+    }
+    fullMessage = "";
+    currentMorse = "";
+    updateMorseUI();
+}
+
+// ================= MODE SWITCHING =================
+function setMode(mode) {
+    currentMode = mode;
+    const badge = document.getElementById('modeBadge');
+    badge.textContent = mode === 'WORD' ? 'WORD BOX' : 'MORSE CODE';
+    badge.className = 'badge ' + (mode === 'WORD' ? 'badgeWord' : 'badgeMorse');
+    document.getElementById('wordGrid').style.display = mode === 'WORD' ? 'grid' : 'none';
+    document.getElementById('morseModePanel').style.display = mode === 'MORSE' ? 'flex' : 'none';
+    document.getElementById('wordCaregiverGrid').style.display = mode === 'WORD' ? 'grid' : 'none';
+    document.getElementById('morseCaregiverGrid').style.display = mode === 'MORSE' ? 'grid' : 'none';
+    document.getElementById('modeSwitchBtn').innerHTML = mode === 'WORD' ? 'SWITCH TO<br>MORSE CODE' : 'SWITCH TO<br>WORD BOX';
+    updateLegend();
+    updateMessageDisplay();
+    resetProgress();
+}
+function updateLegend() {
+    document.getElementById('legendShort').textContent = currentMode === 'WORD' ? 'SHORT = Next' : 'SHORT = Dot';
+    document.getElementById('legendLong').textContent = currentMode === 'WORD' ? 'LONG = Speak' : 'LONG = Dash';
+}
+function switchToWord()  { setMode('WORD'); }
+function switchToMorse() { setMode('MORSE'); hideSuggestionBanner(); }
+function toggleModeManual() {
+    if (currentMode === 'WORD') switchToMorse(); else switchToWord();
+    lastAction = "Switched to " + (currentMode === 'WORD' ? "Word Box" : "Morse Code") + " mode";
+    updateDebugUI();
+}
+
+// ================= ADAPTIVE PROFICIENCY =================
+function updateProficiencyUI() {
+    const w = proficiency.word, m = proficiency.morse;
+    const wTotal = w.success + w.errors, mTotal = m.success + m.errors;
+    const wAcc = wTotal ? Math.round(100 * w.success / wTotal) + "%" : "--";
+    const mAcc = mTotal ? Math.round(100 * m.success / mTotal) + "%" : "--";
+    document.getElementById('proficiencyStats').innerHTML =
+        `WORD BOX: ${w.success}/${wTotal} (${wAcc}) &nbsp;·&nbsp; MORSE: ${m.success}/${mTotal} (${mAcc})`;
+}
+function checkGraduationSuggestion() {
+    if (currentMode !== 'WORD' || wordSuggestion.dismissedForever) return;
+    const p = proficiency.word;
+    const total = p.success + p.errors;
+    if (total < GRAD_MIN_ATTEMPTS || p.success < GRAD_MIN_SUCCESS) return;
+    if (p.success / total < GRAD_ACCURACY) return;
+    if (p.success < wordSuggestion.cooldownUntil) return;
+    document.getElementById('suggestionBanner').classList.add('show');
+}
+function hideSuggestionBanner() { document.getElementById('suggestionBanner').classList.remove('show'); }
+function acceptSuggestion() { hideSuggestionBanner(); switchToMorse(); }
+function remindLaterSuggestion() { hideSuggestionBanner(); wordSuggestion.cooldownUntil = proficiency.word.success + 15; }
+function neverShowSuggestion() { hideSuggestionBanner(); wordSuggestion.dismissedForever = true; }
+function resetProficiency() {
+    proficiency = {
+        word:  { success:0, errors:0, wordsSpoken:0, sentencesSpoken:0 },
+        morse: { success:0, errors:0, lettersDecoded:0, wordsSpoken:0, sentencesSpoken:0 }
+    };
+    wordSuggestion = { dismissedForever:false, cooldownUntil:0 };
+    updateProficiencyUI();
+    lastAction = "Proficiency stats reset";
+    updateDebugUI();
+}
+
+// ================= PAUSE (caregiver rest control) =================
+function togglePause() {
+    paused = !paused;
+    document.getElementById('pauseBtn').innerHTML = paused ? "RESUME<br>System" : "PAUSE<br>System";
+    document.getElementById('pauseDot').style.display = paused ? 'inline' : 'none';
+    document.getElementById('app').classList.toggle('paused', paused);
+    if (paused) {
+        document.getElementById('progressLabel').textContent = "⏸ Paused by caregiver";
+        document.getElementById('progressLabel').style.color = "#888";
+    } else {
+        resetProgress();
+    }
+    lastAction = paused ? "System paused" : "System resumed";
+    updateDebugUI();
 }
 
 // ================= MANUAL / CAREGIVER CONTROLS =================
-function manualNext() { nextWord(); }
-function manualSpeakWord() { speakWord(); }
-function manualSpeakSentence() { speakSentence(); }
-function manualClearSentence() {
-    sentenceWords = [];
-    updateSentenceDisplay();
-    lastAction = "Sentence cleared";
+function manualNext() { nextWord(); updateDebugUI(); }
+function manualSpeakWord() { speakWord(); updateDebugUI(); }
+function manualSpeakAndClear() { speakAndClearAll(); updateDebugUI(); }
+function manualClearMessage() {
+    if (currentMode === 'WORD') { sentenceWords = []; }
+    else { currentMorse = ""; currentWord = ""; fullMessage = ""; }
+    updateMessageDisplay();
+    if (currentMode === 'MORSE') updateMorseUI();
+    lastAction = "Message cleared";
     updateDebugUI();
 }
+function forceLetter() { processEndOfLetter(); updateDebugUI(); }
+function forceWord() { processEndOfWord(); updateDebugUI(); }
 function toggleVoice() {
     useVoice = !useVoice;
     document.getElementById('voiceBtn').innerHTML = useVoice ? "VOICE<br>ON" : "VOICE<br>OFF";
 }
-function toggleCamPanel() {
-    document.getElementById('camPanel').classList.toggle('open');
-}
-function toggleCaregiverPanel() {
-    document.getElementById('caregiverPanel').classList.toggle('open');
-}
+function toggleCamPanel() { document.getElementById('camPanel').classList.toggle('open'); }
+function toggleCaregiverPanel() { document.getElementById('caregiverPanel').classList.toggle('open'); }
 
 // Hold-to-simulate-blink button, reuses the exact same state machine as the camera
 (function setupSimButton() {
@@ -505,7 +720,126 @@ function toggleCaregiverPanel() {
     btn.addEventListener('touchend', end);
 })();
 
-// ================= CALIBRATION (same approach as the original EAR-based app) =================
+// ================= BLINK STATE MACHINE (shared by camera + manual test button) =================
+function onBlinkStart(now) {
+    if (paused || eyeClosed) return;
+    eyeClosed = true;
+    blinkStartTime = now;
+    systemStatus = "EYE CLOSED";
+    updateDebugUI();
+    requestAnimationFrame(tickProgress);
+}
+function onBlinkEnd(now) {
+    if (!eyeClosed) return;
+    eyeClosed = false;
+    const duration = now - blinkStartTime;
+    systemStatus = "ACTIVE";
+    if (paused) { resetProgress(); return; }
+
+    const type = classifyBlink(duration);
+    const modeKey = currentMode.toLowerCase();
+
+    if (type === "SHORT") {
+        if (currentMode === "WORD") nextWord(); else addDot();
+        proficiency[modeKey].success++;
+    } else if (type === "LONG") {
+        if (currentMode === "WORD") speakWord(); else addDash();
+        proficiency[modeKey].success++;
+    } else if (type === "SENTENCE") {
+        speakAndClearAll();
+        proficiency[modeKey].success++;
+    } else if (type === "NOISE") {
+        lastAction = "Ignored (too brief)";
+    } else if (type === "RESET") {
+        lastAction = "Long pause - resuming";
+    } else {
+        lastAction = `Not recognized (${duration.toFixed(0)}ms)`;
+        beepError();
+        proficiency[modeKey].errors++;
+    }
+
+    resetProgress();
+    updateDebugUI();
+    updateProficiencyUI();
+    checkGraduationSuggestion();
+}
+function tickProgress() {
+    if (!eyeClosed) return;
+    const elapsed = performance.now() - blinkStartTime;
+    updateProgressBar(elapsed);
+    requestAnimationFrame(tickProgress);
+}
+function updateProgressBar(elapsed) {
+    const fill = document.getElementById('progressFill');
+    const label = document.getElementById('progressLabel');
+    fill.classList.remove('pulseRed');
+    const pct = Math.min(100, (elapsed / SENTENCE_MIN) * 100);
+    fill.style.width = pct + "%";
+    const shortLabel = currentMode === 'WORD' ? 'NEXT' : 'DOT';
+    const longLabel  = currentMode === 'WORD' ? 'SPEAK WORD' : 'DASH';
+
+    if (elapsed < SHORT_MIN) {
+        fill.style.background = "#333"; label.textContent = "Holding..."; label.style.color = "#666";
+    } else if (elapsed <= SHORT_MAX) {
+        fill.style.background = "var(--green)"; label.textContent = `✓ Release now → ${shortLabel}`; label.style.color = "var(--green)";
+    } else if (elapsed < LONG_MIN) {
+        fill.style.background = "#665500"; label.textContent = "Keep holding..."; label.style.color = "#a08000";
+    } else if (elapsed <= LONG_MAX) {
+        fill.style.background = "var(--blue)"; label.textContent = `✓ Release now → ${longLabel}`; label.style.color = "var(--blue)";
+    } else if (elapsed < SENTENCE_MIN) {
+        fill.style.background = "#663300"; label.textContent = "Keep holding for SPEAK & CLEAR..."; label.style.color = "#c07030";
+    } else {
+        fill.style.background = "var(--red)"; fill.classList.add('pulseRed');
+        label.textContent = "✓ Release now → SPEAK & CLEAR"; label.style.color = "var(--red)";
+    }
+}
+function resetProgress() {
+    const fill = document.getElementById('progressFill');
+    fill.style.width = "0%"; fill.style.background = "#333"; fill.classList.remove('pulseRed');
+    if (!paused) {
+        document.getElementById('progressLabel').textContent = "Watching for blink...";
+        document.getElementById('progressLabel').style.color = "#666";
+    }
+}
+
+// ================= MORSE AUTO-GAP TICKER (letter/word timeout, mode-agnostic ticking) =================
+function tickMorseGaps() {
+    if (currentMode !== 'MORSE' || paused || eyeClosed) {
+        document.getElementById('morseCountdown').textContent = "";
+        return;
+    }
+    const now = performance.now();
+    if (currentMorse && (now - lastBlinkEndTime) > AUTO_LETTER_GAP) {
+        processEndOfLetter();
+        lastBlinkEndTime = performance.now();
+        updateDebugUI();
+    } else if (currentWord && !currentMorse && (now - lastBlinkEndTime) > AUTO_WORD_GAP) {
+        processEndOfWord();
+        lastBlinkEndTime = performance.now();
+        updateDebugUI();
+    }
+
+    const cd = document.getElementById('morseCountdown');
+    if (currentMorse) {
+        const t = AUTO_LETTER_GAP - (performance.now() - lastBlinkEndTime);
+        cd.textContent = t > 0 ? `Letter in ${(t / 1000).toFixed(1)}s` : "";
+    } else if (currentWord) {
+        const t = AUTO_WORD_GAP - (performance.now() - lastBlinkEndTime);
+        cd.textContent = t > 0 ? `Word in ${(t / 1000).toFixed(1)}s` : "";
+    } else {
+        cd.textContent = "";
+    }
+}
+setInterval(tickMorseGaps, 200);
+
+// ================= DEBUG / STATUS UI =================
+function updateDebugUI() {
+    document.getElementById('statusText').textContent = systemStatus;
+    document.getElementById('lastVal').textContent = lastAction;
+    document.getElementById('threshText').textContent = earThreshold.toFixed(2);
+}
+
+// ================= CALIBRATION (unchanged approach from the original EAR apps) =================
 function toggleCal() {
     const overlay = document.getElementById('calibrationOverlay');
     if (overlay.style.display === 'flex') { overlay.style.display = 'none'; return; }
@@ -599,13 +933,17 @@ function onResults(results) {
 }
 
 // ================= STARTUP =================
-async function startApp(silent) {
-    useVoice = !silent;
+async function startApp(mode) {
+    currentMode = mode;
+    useVoice = document.getElementById('voiceCheckbox').checked;
     initAudio();
     document.getElementById('startScreen').style.display = 'none';
 
     buildGrid();
-    updateSentenceDisplay();
+    buildMorseReference();
+    setMode(mode);
+    updateProficiencyUI();
+    lastBlinkEndTime = performance.now();
 
     video = document.getElementById('videoElement');
     canvas = document.getElementById('canvasOverlay');
