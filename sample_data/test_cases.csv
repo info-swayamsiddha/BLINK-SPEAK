@@ -1,0 +1,9 @@
+test_id,area,test_case,expected_result,status,evidence_or_notes
+TC001,Camera,Grant camera permission,Camera preview starts,NOT_RECORDED,Record browser/device and result
+TC002,Camera,Deny camera permission,Helpful error or recovery guidance,NOT_RECORDED,Record actual behavior
+TC003,Calibration,Complete calibration,Calibration state completes,NOT_RECORDED,Record actual behavior
+TC004,Blink detection,Short intentional blink,Next word selected,NOT_RECORDED,Record durations and observed actions
+TC005,Sentence,Select multiple words,Sentence text accumulates,NOT_RECORDED,Record observed result
+TC006,Speech,Trigger speech output,Selected text is spoken when supported,NOT_RECORDED,Record browser/voice result
+TC007,Caregiver,Use manual controls,Manual actions work without blink input,NOT_RECORDED,Record observed result
+TC008,Responsive UI,Use a narrow viewport,Controls remain usable,NOT_RECORDED,Record viewport and observations
