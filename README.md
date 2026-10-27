@@ -33,9 +33,6 @@ The current README documents these approximate ranges; verify the exact boundari
 - [Architecture diagram (SVG)](docs/architecture.svg)
 - [Technical design document](docs/TECHNICAL_DESIGN_DOCUMENT.md)
 - [Low-fidelity wireframes](docs/WIREFRAMES.md)
-- [Synthetic blink-event examples](sample_data/blink_event_examples.csv)
-- [Test-case checklist](sample_data/test_cases.csv)
-- [Upload and submission notes](UPLOAD_INSTRUCTIONS.txt)
 - [License](LICENSE)
 
 ## Responsible use and limitations
