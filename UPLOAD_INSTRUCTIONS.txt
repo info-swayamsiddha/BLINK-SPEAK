@@ -1,0 +1,19 @@
+BLINKSPEAK GitHub documentation upload
+
+The documentation files are being added directly to the repository by the connected GitHub integration.
+
+Expected structure:
+- LICENSE
+- docs/TECHNICAL_ARCHITECTURE.md
+- docs/TECHNICAL_DESIGN_DOCUMENT.md
+- docs/WIREFRAMES.md
+- docs/architecture.svg
+- sample_data/blink_event_examples.csv
+- sample_data/test_cases.csv
+
+Before submitting the repository:
+1. Review the MIT license and confirm you have the right to license all included code.
+2. Review all documentation against the current index.html.
+3. Run the test cases and replace NOT_RECORDED only with observed results and evidence.
+4. Add actual demo video and presentation separately to the hackathon submission portal if required.
+5. Avoid unsupported accuracy claims unless the evaluation method, dataset, and results are documented.
