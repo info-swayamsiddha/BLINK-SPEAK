@@ -1,6 +1,0 @@
-event_id,blink_duration_ms,expected_action,note
-EX001,75,ignore,synthetic example below minimum duration
-EX002,420,next_word,synthetic example in short-blink range
-EX003,1100,speak_add_word,synthetic example in long-blink range
-EX004,3400,speak_sentence_clear,synthetic example in sentence range
-EX005,11500,ignore,synthetic example above maximum duration
