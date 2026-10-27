@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600" role="img" aria-labelledby="title desc">
+<title id="title">BLINKSPEAK technical architecture</title><desc id="desc">Camera input flows through MediaPipe Face Mesh, EAR and blink classification, interaction state, then visual and speech output.</desc>
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#416b5a"/></marker></defs>
+<rect width="1000" height="600" rx="20" fill="#f6fbf8"/>
+<text x="500" y="48" text-anchor="middle" font-family="Arial,sans-serif" font-size="28" font-weight="700" fill="#173f32">BLINKSPEAK — Technical Architecture</text>
+<g font-family="Arial,sans-serif" text-anchor="middle">
+<rect x="70" y="100" width="240" height="82" rx="12" fill="#dcefe4" stroke="#458467" stroke-width="2"/><text x="190" y="132" font-size="18" font-weight="700" fill="#173f32">Camera input</text><text x="190" y="157" font-size="14" fill="#173f32">User face + permission</text>
+<rect x="380" y="100" width="240" height="82" rx="12" fill="#dcefe4" stroke="#458467" stroke-width="2"/><text x="500" y="132" font-size="18" font-weight="700" fill="#173f32">MediaPipe Face Mesh</text><text x="500" y="157" font-size="14" fill="#173f32">Eye landmark tracking</text>
+<rect x="690" y="100" width="240" height="82" rx="12" fill="#dcefe4" stroke="#458467" stroke-width="2"/><text x="810" y="132" font-size="18" font-weight="700" fill="#173f32">EAR + calibration</text><text x="810" y="157" font-size="14" fill="#173f32">Estimate eye openness</text>
+<path d="M310 141 H375" stroke="#416b5a" stroke-width="3" marker-end="url(#arrow)"/><path d="M620 141 H685" stroke="#416b5a" stroke-width="3" marker-end="url(#arrow)"/>
+<rect x="690" y="260" width="240" height="90" rx="12" fill="#fff0cf" stroke="#b28a35" stroke-width="2"/><text x="810" y="293" font-size="18" font-weight="700" fill="#60460d">Blink classification</text><text x="810" y="318" font-size="14" fill="#60460d">Duration → action</text>
+<path d="M810 182 V255" stroke="#416b5a" stroke-width="3" marker-end="url(#arrow)"/>
+<rect x="380" y="260" width="240" height="90" rx="12" fill="#dcefe4" stroke="#458467" stroke-width="2"/><text x="500" y="293" font-size="18" font-weight="700" fill="#173f32">Interaction logic</text><text x="500" y="318" font-size="14" fill="#173f32">Word selection + sentence</text>
+<path d="M690 305 H625" stroke="#416b5a" stroke-width="3" marker-end="url(#arrow)"/>
+<rect x="70" y="260" width="240" height="90" rx="12" fill="#dcefe4" stroke="#458467" stroke-width="2"/><text x="190" y="293" font-size="18" font-weight="700" fill="#173f32">User interface</text><text x="190" y="318" font-size="14" fill="#173f32">Word board + feedback</text>
+<path d="M380 305 H315" stroke="#416b5a" stroke-width="3" marker-end="url(#arrow)"/>
+<rect x="210" y="425" width="250" height="82" rx="12" fill="#e5e5fa" stroke="#7774ad" stroke-width="2"/><text x="335" y="457" font-size="18" font-weight="700" fill="#2e2c63">Visible text output</text><text x="335" y="482" font-size="14" fill="#2e2c63">Selected word / sentence</text>
+<rect x="540" y="425" width="250" height="82" rx="12" fill="#e5e5fa" stroke="#7774ad" stroke-width="2"/><text x="665" y="457" font-size="18" font-weight="700" fill="#2e2c63">Speech output</text><text x="665" y="482" font-size="14" fill="#2e2c63">Browser Web Speech API</text>
+<path d="M190 350 V390 H335 V420" fill="none" stroke="#416b5a" stroke-width="3" marker-end="url(#arrow)"/><path d="M500 350 V390 H665 V420" fill="none" stroke="#416b5a" stroke-width="3" marker-end="url(#arrow)"/>
+<text x="500" y="560" text-anchor="middle" font-size="14" fill="#52675d">Prototype architecture — confirm exact runtime behavior against index.html</text>
+</g></svg>
